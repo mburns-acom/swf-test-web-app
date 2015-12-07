@@ -3,6 +3,8 @@ package com.iarchives.swf.direct.workflow;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.annotation.PostConstruct;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -17,18 +19,21 @@ import com.amazonaws.services.simpleworkflow.model.StartWorkflowExecutionRequest
 import com.amazonaws.services.simpleworkflow.model.TaskList;
 import com.amazonaws.services.simpleworkflow.model.TypeAlreadyExistsException;
 import com.amazonaws.services.simpleworkflow.model.WorkflowType;
-
 import com.iarchives.swf.direct.config.WorkflowConfig;
 
 @Component
 public class SwfUtils {
 
+	private AmazonSimpleWorkflowClient swfClient;
+	
 	@Autowired
 	private WorkflowConfig workflowConfig;
 
-	@Autowired
-	private AmazonSimpleWorkflowClient swfClient;
-
+	@PostConstruct
+	public void init() {
+		swfClient = workflowConfig.getAmazonSimpleWorkflowClient();
+	}
+	
 	public void registerDomain() {
 
 		RegisterDomainRequest domainRequest = new RegisterDomainRequest();

@@ -10,37 +10,47 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+
+import javax.annotation.PostConstruct;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.transfer.TransferManager;
-import com.amazonaws.services.simpleworkflow.*;
-import com.amazonaws.services.simpleworkflow.model.*;
+import com.amazonaws.services.simpleworkflow.AmazonSimpleWorkflowClient;
+import com.amazonaws.services.simpleworkflow.model.ActivityTask;
+import com.amazonaws.services.simpleworkflow.model.PollForActivityTaskRequest;
+import com.amazonaws.services.simpleworkflow.model.RespondActivityTaskCompletedRequest;
+import com.amazonaws.services.simpleworkflow.model.RespondActivityTaskFailedRequest;
+import com.amazonaws.services.simpleworkflow.model.TaskList;
 import com.iarchives.swf.direct.config.WorkflowConfig;
-import com.iarchives.swf.service.Container;
-import com.iarchives.swf.service.Image;
-import com.iarchives.swf.service.Project;
-import com.iarchives.swf.service.RestClient;
+import com.iarchives.swf.dto.Container;
+import com.iarchives.swf.dto.Image;
+import com.iarchives.swf.dto.Project;
+import com.iarchives.swf.dto.RestClient;
 
 @Component
 public class ActivityWorker implements Runnable {
+
+	private AmazonSimpleWorkflowClient swfClient;
 
 	@Autowired
 	private WorkflowConfig workflowConfig;
 
 	@Autowired
-	private AmazonSimpleWorkflowClient swfClient;
-	
-	@Autowired
 	private RestClient restClient;
+	
+	@PostConstruct
+	public void init() {
+		swfClient = workflowConfig.getAmazonSimpleWorkflowClient();
+		
+		Thread activityWorker = new Thread(this, "activity-worker");
+		activityWorker.start();
+	}
 
 	public static void deleteRecursive(File f) throws FileNotFoundException {
 		if (f.isDirectory()) {

@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration;
  * @author Mark Burns
  */
 @Configuration
-@ComponentScan
+@ComponentScan(basePackages = {"com.iarchives.web", "com.iarchives.swf"})
 @EnableAutoConfiguration
 public class Application {
 

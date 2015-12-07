@@ -1,27 +1,18 @@
 package com.iarchives.swf.direct.config;
 
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.beans.factory.config.CustomScopeConfigurer;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
-import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
 
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.simpleworkflow.AmazonSimpleWorkflowClient;
-import com.amazonaws.services.simpleworkflow.flow.spring.WorkflowScope;
 
-@Configuration
-//@Component
+@Component
 @PropertySource({"classpath:application.properties"})
-@Qualifier
-@Scope("workflow")
 public class WorkflowConfig {
 	
 	public static final String ACTIVITY_IMPORT_ZIP = "ImportZipActivity";
@@ -65,63 +56,25 @@ public class WorkflowConfig {
 	@Value("${pdf.test.project.guid}")
 	private String pdfTestProjectGuid;
 	
-	@Bean
-	public CustomScopeConfigurer customScope () {
-	    CustomScopeConfigurer configurer = new CustomScopeConfigurer();
-	    Map<String, Object> workflowScope = new HashMap<String, Object>();
-	    workflowScope.put("workflow", new WorkflowScope());
-	    configurer.setScopes(workflowScope);
-
-	    return configurer;
-	}
+	private AmazonSimpleWorkflowClient swfClient;
 	
-	@Bean(name = {"accesskeys"})
 	public BasicAWSCredentials getBasicAWSCredentials() {
 		return new BasicAWSCredentials(swfAccessId, swfSecretKey);
 	}
 	
-	@Bean(name = {"clientConfiguration"})
 	public ClientConfiguration getClientConfiguration() {
 		ClientConfiguration clientConfig = new ClientConfiguration();
 		clientConfig.setSocketTimeout(socketTimeout);
 		return clientConfig;
 	}
 	
-	@Bean(name = {"swfClient"})
 	public AmazonSimpleWorkflowClient getAmazonSimpleWorkflowClient() {
-		AmazonSimpleWorkflowClient swfClient = new AmazonSimpleWorkflowClient(getBasicAWSCredentials(), getClientConfiguration());
-		//swfClient.setEndpoint(endpoint);
+		if (swfClient == null) {
+			swfClient = new AmazonSimpleWorkflowClient(getBasicAWSCredentials(), getClientConfiguration());
+			//swfClient.setEndpoint(endpoint);
+		}
 		return swfClient;
 	}
-	
-	/*
-   <!--  activities client -->
-   <bean id="activitiesClient" class="aws.flow.sample.MyActivitiesClientImpl" scope="workflow">
-   </bean>
-
-   <!-- workflow implementation -->
-   <bean id="workflowImpl" class="aws.flow.sample.MyWorkflowImpl" scope="workflow">
-      <property name="client" ref="activitiesClient"/>
-      <aop:scoped-proxy proxy-target-class="false" />
-   </bean>
-
-   <!--  workflow worker -->
-   <bean id="workflowWorker"
-      class="com.amazonaws.services.simpleworkflow.flow.spring.SpringWorkflowWorker">
-      <constructor-arg ref="swfClient" />
-      <constructor-arg value="domain1" />
-      <constructor-arg value="tasklist1" />
-      <property name="registerDomain" value="true" />
-      <property name="domainRetentionPeriodInDays" value="1" />
-      <property name="workflowImplementations">
-         <list>
-            <ref bean="workflowImpl" />
-         </list>
-      </property>
-   </bean>
-
-	 */
-	
 	
 	/**
 	 * This is a simple way to manage the list of activities. In production we

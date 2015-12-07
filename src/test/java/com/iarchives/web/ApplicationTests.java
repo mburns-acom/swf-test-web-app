@@ -11,10 +11,10 @@ import org.springframework.boot.test.SpringApplicationConfiguration;
 import org.springframework.boot.test.WebIntegrationTest;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import com.iarchives.swf.service.Container;
-import com.iarchives.swf.service.Image;
-import com.iarchives.swf.service.Project;
-import com.iarchives.swf.service.RestClient;
+import com.iarchives.swf.dto.Container;
+import com.iarchives.swf.dto.Image;
+import com.iarchives.swf.dto.Project;
+import com.iarchives.swf.dto.RestClient;
 import com.iarchives.web.repository.ProjectRepository;
 import com.iarchives.web.service.UserService;
 

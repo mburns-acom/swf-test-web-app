@@ -1,4 +1,4 @@
-package com.iarchives.swf.service;
+package com.iarchives.swf.dto;
 
 import java.util.ArrayList;
 import java.util.Collections;

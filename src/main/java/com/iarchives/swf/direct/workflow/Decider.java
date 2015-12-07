@@ -5,24 +5,35 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.PostConstruct;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import com.amazonaws.services.simpleworkflow.*;
 import com.amazonaws.services.simpleworkflow.model.*;
 import com.iarchives.swf.direct.config.WorkflowConfig;
-import com.iarchives.swf.service.RestClient;
+import com.iarchives.swf.dto.RestClient;
 
+@Component
 public class Decider implements Runnable {
+
+	private AmazonSimpleWorkflowClient swfClient;
 
 	@Autowired
 	private WorkflowConfig workflowConfig;
-
-	@Autowired
-	private AmazonSimpleWorkflowClient swfClient;
 	
 	@Autowired
 	private RestClient restClient;
 	
+	@PostConstruct
+	public void init() {
+		swfClient = workflowConfig.getAmazonSimpleWorkflowClient();
+		
+		Thread deciderWorker = new Thread(this, "decider-worker");
+		deciderWorker.start();
+	}
+
 	public Map<String, Object> getLatestExecutionContext(DecisionTask task, AmazonSimpleWorkflow swf)
 	{
 		DescribeWorkflowExecutionRequest request = new DescribeWorkflowExecutionRequest();
@@ -56,6 +67,7 @@ public class Decider implements Runnable {
 	public List<HistoryEvent> getActivityEvents(List<HistoryEvent> events)
 	{
 		List<HistoryEvent> activityEvents = new ArrayList<HistoryEvent>(events);
+		// TODO: convert to Java 7 code
 //		activityEvents.removeIf(e -> !e.getEventType().startsWith("Activity"));
 		return activityEvents;
 	}
