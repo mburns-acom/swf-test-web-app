@@ -28,7 +28,7 @@
     <!-- Collect the nav links, forms, and other content for toggling -->
     <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
       <ul class="nav navbar-nav navbar-right">
-        <sec:authorize access="isAuthenticated()">
+        <security:authorize access="isAuthenticated()">
 	        <li class="dropdown">
 	          <a href="#" class="dropdown-toggle" data-toggle="dropdown">Options ... <span class="caret"></span></a>
 	          <ul class="dropdown-menu" role="menu">
@@ -41,10 +41,10 @@
 		        <li><a href='<c:url value="/logout" />'>Sign out</a></li>
 	          </ul>
 	        </li>
-        </sec:authorize>
-        <sec:authorize access="isAnonymous()">
+        </security:authorize>
+        <security:authorize access="isAnonymous()">
             <li><a href='<c:url value="/login" />'>Sign in</a></li>
-        </sec:authorize>
+        </security:authorize>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container-fluid -->

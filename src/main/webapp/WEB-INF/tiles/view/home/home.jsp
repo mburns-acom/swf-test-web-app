@@ -13,7 +13,7 @@
 		
 			<c:forEach var="project" items="${page.content}">
 				<tr>
-					<td><a href="${pageContext.request.contextPath}/project/${project.id}">${project.id}</a></td>
+					<td><a href="${pageContext.request.contextPath}/projects/${project.id}">${project.id}</a></td>
 					<td>${project.name}</td>
 				</tr>
 			</c:forEach>

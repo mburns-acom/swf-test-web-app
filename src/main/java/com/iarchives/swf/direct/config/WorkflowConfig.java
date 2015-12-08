@@ -91,7 +91,7 @@ public class WorkflowConfig {
 		map.put("GenerateThumbnailActivity", "1.0");
 		map.put("ExtractTextActivity", "1.0");
 		map.put("ApproveContainerActivity", "1.0");
-		return null;
+		return map;
 	}
 	
 

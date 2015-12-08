@@ -8,14 +8,17 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class JsonUtils {
 
 	public static Map<String, Object> fromString(String json) throws RuntimeException {
+		
 		Map<String, Object> map = null;
 		
-		ObjectMapper mapper = new ObjectMapper();
-		try {
-			map = mapper.readValue(json, Map.class);
-		} catch (Exception e) {
-			e.printStackTrace();
-			throw new RuntimeException(e);
+		if (json != null) {
+			ObjectMapper mapper = new ObjectMapper();
+			try {
+				map = mapper.readValue(json, Map.class);
+			} catch (Exception e) {
+				e.printStackTrace();
+				throw new RuntimeException(e);
+			}
 		}
 		
 		if (map == null) {
@@ -25,14 +28,21 @@ public class JsonUtils {
 	}
 	
 	public static String toString(Map<String, Object> inputMap) throws RuntimeException {
-		ObjectMapper mapper = new ObjectMapper();
+		
 		String json = null;
-		try {
-			json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(inputMap);
-		} catch (Exception e) {
-			e.printStackTrace();
-			throw new RuntimeException(e);
+
+		if (inputMap != null && !inputMap.isEmpty()) {
+			ObjectMapper mapper = new ObjectMapper();
+			try {
+				json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(inputMap);
+			} catch (Exception e) {
+				e.printStackTrace();
+				throw new RuntimeException(e);
+			}
+		} else {
+			json = "";
 		}
+		
 		return json;
 	}
 
