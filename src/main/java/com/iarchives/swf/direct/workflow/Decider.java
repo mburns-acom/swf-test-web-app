@@ -34,8 +34,7 @@ public class Decider implements Runnable {
 		deciderWorker.start();
 	}
 
-	public Map<String, Object> getLatestExecutionContext(DecisionTask task, AmazonSimpleWorkflow swf)
-	{
+	public Map<String, Object> getLatestExecutionContext(DecisionTask task, AmazonSimpleWorkflow swf) {
 		DescribeWorkflowExecutionRequest request = new DescribeWorkflowExecutionRequest();
 		request.setDomain(workflowConfig.getDomain());
 		request.setExecution(task.getWorkflowExecution());
@@ -51,8 +50,7 @@ public class Decider implements Runnable {
 	    return (int) l;
 	}
 	
-	public HistoryEvent getLastActivityBeforeDecisionTaskScheduled(List<HistoryEvent> events)
-	{
+	public HistoryEvent getLastActivityBeforeDecisionTaskScheduled(List<HistoryEvent> events) {
 		HistoryEvent event = null;
 		for (int i = events.size() - 1; event == null && i > 0; i--)
 		{
@@ -64,62 +62,108 @@ public class Decider implements Runnable {
 		return event;
 	}
 	
-	public List<HistoryEvent> getActivityEvents(List<HistoryEvent> events)
-	{
-		List<HistoryEvent> activityEvents = new ArrayList<HistoryEvent>(events);
-		// TODO: convert to Java 7 code
-//		activityEvents.removeIf(e -> !e.getEventType().startsWith("Activity"));
+	public List<HistoryEvent> getActivityEvents(List<HistoryEvent> events) {
+		// Filter for activity events
+		List<HistoryEvent> activityEvents = new ArrayList<HistoryEvent>();
+		for (HistoryEvent e : events) {
+			if (e.getEventType().startsWith("Activity")) {
+				activityEvents.add(e);
+			}
+		}
+		
 		return activityEvents;
 	}
 	
-	public boolean isReadyToProcessZip(DecisionTask task, HistoryEvent trigger, List<HistoryEvent> events, Map<String, Object> context)
-	{
+	/**
+	 * Test whether a task is ready for import. Since import is the first step
+	 * in the workflow it is easy to determine whether the task is ready.
+	 * 
+	 * @param task
+	 * @param trigger
+	 * @param events
+	 * @param context
+	 * @return
+	 */
+	public boolean isReadyToImport(DecisionTask task, HistoryEvent trigger,
+			List<HistoryEvent> events, Map<String, Object> context) {
 		return trigger.getEventType().compareTo("WorkflowExecutionStarted") == 0;
 	}
 	
-	public boolean isReadyToProcessImages(DecisionTask task, HistoryEvent trigger, List<HistoryEvent> events, Map<String, Object> context)
-	{
+	/**
+	 * Test whether the task is ready to perform the image processing task.
+	 * The import task needs to have completed successfully.
+	 * 
+	 * @param task
+	 * @param trigger
+	 * @param events
+	 * @param context
+	 * @return
+	 */
+	public boolean isReadyToProcessImages(DecisionTask task,
+			HistoryEvent trigger, List<HistoryEvent> events,
+			Map<String, Object> context) {
+		
 		boolean ready = false;
-		ActivityTaskCompletedEventAttributes attribs = trigger.getActivityTaskCompletedEventAttributes();
-		if (attribs != null)
-		{
-			HistoryEvent scheduled = events.get(safeLongToInt(attribs.getScheduledEventId() - 1));
-			if (scheduled != null)
-			{
-				ActivityTaskScheduledEventAttributes scheduledAttribs = scheduled.getActivityTaskScheduledEventAttributes();
+		
+		ActivityTaskCompletedEventAttributes attribs = trigger
+				.getActivityTaskCompletedEventAttributes();
+		if (attribs != null) {
+			HistoryEvent scheduled = events.get(safeLongToInt(attribs
+					.getScheduledEventId() - 1));
+			if (scheduled != null) {
+				ActivityTaskScheduledEventAttributes scheduledAttribs = scheduled
+						.getActivityTaskScheduledEventAttributes();
 				ready = scheduledAttribs != null && scheduledAttribs.getActivityType().getName().compareTo(workflowConfig.getActivities().get(WorkflowConfig.ACTIVITY_IMPORT_ZIP)) == 0;
 			}
 		}
 		return ready;
 	}
 	
-	public boolean isReadyForApproval(DecisionTask task, HistoryEvent trigger, List<HistoryEvent> events, Map<String, Object> context)
-	{
-		return true; //((String)context.getOrDefault("stage", "")).compareTo("processing") == 0 &&
+	/**
+	 * Test whether the task is ready for the approval (QA) process. It must
+	 * have successfully completed the creation of thumbnails and the text
+	 * extraction activities.
+	 * 
+	 * @param task
+	 * @param trigger
+	 * @param events
+	 * @param context
+	 * @return
+	 */
+	public boolean isReadyForApproval(DecisionTask task, HistoryEvent trigger,
+			List<HistoryEvent> events, Map<String, Object> context) {
+		// TODO: Complete this logic
+		return false;
+//		return ((String)context.getOrDefault("stage", "")).compareTo("processing") == 0 &&
 //				((double)context.getOrDefault("pdfCount", 0d)) == ((double)context.getOrDefault("pdfDone", -1d)) &&
 //				((double)context.getOrDefault("xmlCount", 0d)) == ((double)context.getOrDefault("xmlDone", -1d));
 	}
 	
-	public String getApprovalOutcome(DecisionTask task, HistoryEvent trigger, List<HistoryEvent> events, Map<String, Object> context)
-	{
+	/**
+	 * Get the outcome of the approval process.
+	 * 
+	 * @param task
+	 * @param trigger
+	 * @param events
+	 * @param context
+	 * @return
+	 */
+	public String getApprovalOutcome(DecisionTask task, HistoryEvent trigger,
+			List<HistoryEvent> events, Map<String, Object> context) {
+
 		String outcome = null;
 
-		if (trigger != null && trigger.getEventType().compareTo("ActivityTaskCompleted") == 0)
-		{
+		if (trigger != null && trigger.getEventType().compareTo("ActivityTaskCompleted") == 0) {
 			ActivityTaskCompletedEventAttributes attribs = trigger.getActivityTaskCompletedEventAttributes();
-			if (attribs != null)
-			{
+			if (attribs != null) {
 				HistoryEvent scheduled = events.get(safeLongToInt(attribs.getScheduledEventId() - 1));
-				if (scheduled != null)
-				{
+				if (scheduled != null) {
 					ActivityTaskScheduledEventAttributes scheduledAttribs = scheduled.getActivityTaskScheduledEventAttributes();
-					if (scheduledAttribs != null)
-					{
-//						if (scheduledAttribs.getActivityType().getName().compareTo(workflowConfig.getApproveBatchType()) == 0)
-//						{
-//							Map<String, Object> result = JsonUtils.fromString(attribs.getResult());
-//							outcome = (String)result.get("outcome");
-//						}
+					if (scheduledAttribs != null) {
+						if (scheduledAttribs.getActivityType().getName().compareTo(WorkflowConfig.ACTIVITY_APPROVE_CONTAINER) == 0) {
+							Map<String, Object> result = JsonUtils.fromString(attribs.getResult());
+							outcome = (String)result.get("outcome");
+						}
 					}
 				}
 			}
@@ -128,162 +172,167 @@ public class Decider implements Runnable {
 		return outcome;
 	}
 	
-	public Map<String, Object> getEventInput(HistoryEvent event)
-	{
+	/**
+	 * Get the event input data into a map.
+	 * 
+	 * @param event
+	 * @return
+	 */
+	public Map<String, Object> getEventInput(HistoryEvent event) {
 		return JsonUtils.fromString(event.getWorkflowExecutionStartedEventAttributes().getInput());
 	}
 	
-	public static RespondDecisionTaskCompletedRequest getDecisionTaskResponse(List<DecisionTask> tasks, AmazonSimpleWorkflow swf)
+	public RespondDecisionTaskCompletedRequest getDecisionTaskResponse(List<DecisionTask> tasks, AmazonSimpleWorkflow swf)
 	{
 		RespondDecisionTaskCompletedRequest response = null;
-//		if (tasks.size() > 0)
-//		{
-//			DecisionTask task = tasks.get(0);
-//			String taskToken = task.getTaskToken();
-//			if (task != null && taskToken != null)
-//			{
-//				
-//				Map<String, Object> context = getLatestExecutionContext(task, swf);
-//
-//				List<HistoryEvent> events = new ArrayList<HistoryEvent>();
-//				for (DecisionTask t : tasks)
-//					events.addAll(t.getEvents());
-//			
-//				response = new RespondDecisionTaskCompletedRequest();
-//				response.setTaskToken(taskToken);
-//
-//				Map<String, Object> workflowInput = getEventInput(events.get(0));
-//				HistoryEvent trigger = getLastActivityBeforeDecisionTaskScheduled(events);
-//				
-//				// increment counters for finished imaged processing
-//				if (trigger != null && trigger.getEventType().compareTo("ActivityTaskCompleted") == 0)
-//				{
-//					ActivityTaskCompletedEventAttributes attribs = trigger.getActivityTaskCompletedEventAttributes();
-//					if (attribs != null)
-//					{
-//						HistoryEvent scheduled = events.get(safeLongToInt(attribs.getScheduledEventId() - 1));
-//						if (scheduled != null)
-//						{
-//							ActivityTaskScheduledEventAttributes scheduledAttribs = scheduled.getActivityTaskScheduledEventAttributes();
-//							if (scheduledAttribs != null)
-//							{
-//								/*
-//								if (scheduledAttribs.getActivityType().getName().compareTo(Settings.getProcessImageActivityType()) == 0)
-//									context.put("pdfDone", 1d + (double)context.getOrDefault("pdfDone", 0d));
-//								else if (scheduledAttribs.getActivityType().getName().compareTo(Settings.getProcessXmlActivityType()) == 0)
-//									context.put("xmlDone", 1d + (double)context.getOrDefault("xmlDone", 0d));
-//									*/
-//							}
-//						}
-//					}
-//				}
-//				
-//				List<Decision> decisions = new ArrayList<Decision>();
-//
-//				if (isReadyToProcessZip(task, trigger, events, context)) // no previous activity-related events, process zip
-//				{
-//					
-//					context.put("stage", "initializing");
-//					
-//					Decision decision = new Decision();
-//					decision.setDecisionType(DecisionType.ScheduleActivityTask);
-//					ScheduleActivityTaskDecisionAttributes attributes = new ScheduleActivityTaskDecisionAttributes();
-//
-//					String priority = events.get(0).getWorkflowExecutionStartedEventAttributes().getTaskPriority();
-//					
-//					Map<String, Object> inputMap = new HashMap<String, Object>();
-//					inputMap.put("bucket", (String)workflowInput.get("bucket"));
-//					inputMap.put("object", (String)workflowInput.get("object"));
-//					
-//					String inputJson = JsonUtils.toString(inputMap);
-//					
-//					ActivityType activityType = new ActivityType();
-//					activityType.setName(workflowConfig.getProcessZipActivityType());
-//					activityType.setVersion(workflowConfig.getProcessZipActivityVersion());
-//					
-//					attributes.setActivityType(activityType);
-//					attributes.setInput(inputJson);
-//					
-//					TaskList taskList = new TaskList();
-//					taskList.setName(workflowConfig.getProcessZipTaskList());
-//
-//					attributes.setTaskList(taskList);
-//					attributes.setTaskPriority(priority);
-//
-//					String uuid = java.util.UUID.randomUUID().toString();
-//					attributes.setActivityId(uuid);
-//
-//					decision.setScheduleActivityTaskDecisionAttributes(attributes);
-//					decisions.add(decision);
-//				}
-//				else if (isReadyToProcessImages(task, trigger, events, context)) // previous event is completed process zip activity
-//				{
-//					addProcessImagesDecisions(decisions, context, trigger, workflowInput, events);
-//				}
-//				else if (isReadyForApproval(task, trigger, events, context)) // all process image tasks are closed (complete, failed, cancelled)
-//				{
-//					context.put("stage", "approval pending");
-//					Decision decision = new Decision();
-//					decision.setDecisionType(DecisionType.ScheduleActivityTask);
-//					ScheduleActivityTaskDecisionAttributes attributes = new ScheduleActivityTaskDecisionAttributes();
-//
-//					String priority = events.get(0).getWorkflowExecutionStartedEventAttributes().getTaskPriority();
-//					
-//					Map<String, Object> inputMap = new HashMap<String, Object>();
-//					inputMap.put("priority", priority);
-//					
-//					String inputJson = JsonUtils.toString(inputMap);
-//					
-//					ActivityType activityType = new ActivityType();
-//					activityType.setName(workflowConfig.getApproveBatchType());
-//					activityType.setVersion(workflowConfig.getApproveBatchVersion());
-//					
-//					attributes.setActivityType(activityType);
-//					attributes.setInput(inputJson);
-//					
-//					TaskList taskList = new TaskList();
-//					taskList.setName(Settings.getApproveBatchTaskList());
-//
-//					attributes.setTaskList(taskList);
-//					attributes.setTaskPriority(priority);
-//
-//					String uuid = java.util.UUID.randomUUID().toString();
-//					attributes.setActivityId(uuid);
-//
-//					decision.setScheduleActivityTaskDecisionAttributes(attributes);
-//					decisions.add(decision);
-//
-//				}
-//				else
-//				{
-//					String outcome = getApprovalOutcome(task, trigger, events, context);
-//					if (outcome != null)
-//					{
-//						switch (outcome)
-//						{
-//						case "approved":
-//							addWorkflowCompleteDecisions(decisions);
-//							break;
-//						case "not-approved":
-//							addProcessImagesDecisions(decisions, context, trigger, workflowInput, events);
-//							break;
-//						}	
-//					}
-//				}
-//				response.setDecisions(decisions);
-//				response.setExecutionContext(JsonUtils.toString(context));
-//			}
-//		}
+		
+		if (tasks.size() > 0) {
+			DecisionTask task = tasks.get(0);
+			String taskToken = task.getTaskToken();
+			
+			if (task != null && taskToken != null) {
+				
+				Map<String, Object> context = getLatestExecutionContext(task, swf);
+
+				List<HistoryEvent> events = new ArrayList<HistoryEvent>();
+				for (DecisionTask t : tasks) {
+					events.addAll(t.getEvents());
+				}
+			
+				response = new RespondDecisionTaskCompletedRequest();
+				response.setTaskToken(taskToken);
+
+				Map<String, Object> workflowInput = getEventInput(events.get(0));
+				HistoryEvent trigger = getLastActivityBeforeDecisionTaskScheduled(events);
+				
+				// increment counters for finished imaged processing
+				if (trigger != null && trigger.getEventType().compareTo("ActivityTaskCompleted") == 0) {
+					ActivityTaskCompletedEventAttributes attribs = trigger.getActivityTaskCompletedEventAttributes();
+					if (attribs != null) {
+						HistoryEvent scheduled = events.get(safeLongToInt(attribs.getScheduledEventId() - 1));
+						if (scheduled != null) {
+							ActivityTaskScheduledEventAttributes scheduledAttribs = scheduled.getActivityTaskScheduledEventAttributes();
+							if (scheduledAttribs != null) {
+								/*
+								if (scheduledAttribs.getActivityType().getName().compareTo(Settings.getProcessImageActivityType()) == 0)
+									context.put("pdfDone", 1d + (double)context.getOrDefault("pdfDone", 0d));
+								else if (scheduledAttribs.getActivityType().getName().compareTo(Settings.getProcessXmlActivityType()) == 0)
+									context.put("xmlDone", 1d + (double)context.getOrDefault("xmlDone", 0d));
+									*/
+							}
+						}
+					}
+				}
+				
+				List<Decision> decisions = new ArrayList<Decision>();
+
+				if (isReadyToImport(task, trigger, events, context)) // no previous activity-related events, process zip
+				{
+					context.put("stage", "initializing");
+					
+					Decision decision = new Decision();
+					decision.setDecisionType(DecisionType.ScheduleActivityTask);
+					ScheduleActivityTaskDecisionAttributes attributes = new ScheduleActivityTaskDecisionAttributes();
+
+					String priority = events.get(0).getWorkflowExecutionStartedEventAttributes().getTaskPriority();
+					
+					Map<String, Object> inputMap = new HashMap<String, Object>();
+					inputMap.put("bucket", (String)workflowInput.get("bucket"));
+					inputMap.put("object", (String)workflowInput.get("object"));
+					
+					String inputJson = JsonUtils.toString(inputMap);
+					
+					ActivityType activityType = new ActivityType();
+					activityType.setName(WorkflowConfig.ACTIVITY_IMPORT_ZIP);
+					activityType.setVersion(workflowConfig.getActivitiesVersion());
+					
+					attributes.setActivityType(activityType);
+					attributes.setInput(inputJson);
+					
+					TaskList taskList = new TaskList();
+					taskList.setName(workflowConfig.getActivityWorkerTaskListToPoll());
+
+					attributes.setTaskList(taskList);
+					attributes.setTaskPriority(priority);
+
+					attributes.setActivityId(java.util.UUID.randomUUID().toString());
+
+					decision.setScheduleActivityTaskDecisionAttributes(attributes);
+					decisions.add(decision);
+				}
+				else if (isReadyToProcessImages(task, trigger, events, context)) // previous event is completed process zip activity
+				{
+					addProcessImagesDecisions(decisions, context, trigger, workflowInput, events);
+				}
+				else if (isReadyForApproval(task, trigger, events, context)) // all process image tasks are closed (complete, failed, cancelled)
+				{
+					context.put("stage", "approval pending");
+					Decision decision = new Decision();
+					decision.setDecisionType(DecisionType.ScheduleActivityTask);
+					ScheduleActivityTaskDecisionAttributes attributes = new ScheduleActivityTaskDecisionAttributes();
+
+					String priority = events.get(0).getWorkflowExecutionStartedEventAttributes().getTaskPriority();
+					
+					Map<String, Object> inputMap = new HashMap<String, Object>();
+					inputMap.put("priority", priority);
+					
+					String inputJson = JsonUtils.toString(inputMap);
+					
+					ActivityType activityType = new ActivityType();
+					activityType.setName(WorkflowConfig.ACTIVITY_APPROVE_CONTAINER);
+					activityType.setVersion(workflowConfig.getActivitiesVersion());
+					
+					attributes.setActivityType(activityType);
+					attributes.setInput(inputJson);
+					
+					TaskList taskList = new TaskList();
+					taskList.setName(workflowConfig.getActivityWorkerTaskListToPoll());
+
+					attributes.setTaskList(taskList);
+					attributes.setTaskPriority(priority);
+
+					attributes.setActivityId(java.util.UUID.randomUUID().toString());
+
+					decision.setScheduleActivityTaskDecisionAttributes(attributes);
+					decisions.add(decision);
+
+				}
+				else
+				{
+					String outcome = getApprovalOutcome(task, trigger, events, context);
+					if (outcome != null)
+					{
+						switch (outcome)
+						{
+						case "approved":
+							addWorkflowCompleteDecisions(decisions);
+							break;
+						case "not-approved":
+							addProcessImagesDecisions(decisions, context, trigger, workflowInput, events);
+							break;
+						}	
+					}
+				}
+				response.setDecisions(decisions);
+				response.setExecutionContext(JsonUtils.toString(context));
+			}
+		}
 		return response;
 	}
 	
+	/**
+	 * Execute the thumbnail and text activities in parallel.
+	 * 
+	 * @param decisions
+	 * @param context
+	 * @param trigger
+	 * @param workflowInput
+	 * @param events
+	 */
 	public void addProcessImagesDecisions(List<Decision> decisions, Map<String, Object> context, HistoryEvent trigger, Map<String, Object> workflowInput, List<HistoryEvent> events)
 	{
 		context.put("stage", "processing");
 
-		double pdfCount = 0d;
-		double xmlCount = 0d;
-		
 		HistoryEvent originalTrigger = null;
 		if (trigger.getEventType().compareTo("ActivityTaskCompleted") == 0)
 		{
@@ -299,83 +348,76 @@ public class Decider implements Runnable {
 						if (scheduledAttribs.getActivityType().getName().compareTo(workflowConfig.getActivities().get(WorkflowConfig.ACTIVITY_IMPORT_ZIP)) == 0)
 						{
 							originalTrigger = trigger;
-							context.put("zipCompletedEventId", trigger.getEventId());
+							context.put("importCompletedEventId", trigger.getEventId());
 						}
 						else
 						{
-							int id = (int)(double)context.get("zipCompletedEventId");
+							int id = (int)(double)context.get("importCompletedEventId");
 							originalTrigger = events.get(id - 1);
 						}
 					}
 				}
 			}
-			
 		}
 		
-		Map<String, Object> result = JsonUtils.fromString(originalTrigger.getActivityTaskCompletedEventAttributes().getResult());
-		for (Object o : (List<Object>)result.get("files"))
-		{
+		// TODO: Schedule both WorkflowConfig.ACTIVITY_GEN_THUMB and WorkflowConfig.ACTIVITY_EXTRACT_TEXT
+		// These will run on an entire "Container" rather than on individual images.
 
-			String taskType = null;
-			String taskVersion = null;
-			String taskListName = null;
-			
-			String path = (String)o;
-			if (path.endsWith(".pdf.zip"))
-			{
-				pdfCount += 1d;
-//				taskType = workflowConfig.getProcessImageActivityType();
-//				taskVersion = workflowConfig.getProcessImageActivityVersion();
-//				taskListName = workflowConfig.getProcessImageTaskList();
-			}
-			else if (path.endsWith(".xml.zip"))
-			{
-				xmlCount += 1d;
-//				taskType = workflowConfig.getProcessXmlActivityType();
-//				taskVersion = workflowConfig.getProcessXmlActivityVersion();
-//				taskListName = workflowConfig.getProcessXmlTaskList();
-			}
-
-			if (taskType != null)
-			{
-				Decision decision = new Decision();
-				decision.setDecisionType(DecisionType.ScheduleActivityTask);
-				ScheduleActivityTaskDecisionAttributes attributes = new ScheduleActivityTaskDecisionAttributes();
-
-				String priority = events.get(0).getWorkflowExecutionStartedEventAttributes().getTaskPriority();
-				
-				Map<String, Object> inputMap = new HashMap<String, Object>();
-				inputMap.put("bucket", (String)workflowInput.get("bucket"));
-				inputMap.put("object", path);
-
-				String inputJson = JsonUtils.toString(inputMap);
-				
-				ActivityType activityType = new ActivityType();
-				activityType.setName(taskType);
-				activityType.setVersion(taskVersion);
-				
-				attributes.setActivityType(activityType);
-				attributes.setInput(inputJson);
-				
-				TaskList taskList = new TaskList();
-				taskList.setName(taskListName);
-
-				attributes.setTaskList(taskList);
-				attributes.setTaskPriority(priority);
-
-				String uuid = java.util.UUID.randomUUID().toString();
-				attributes.setActivityId(uuid);
-
-				decision.setScheduleActivityTaskDecisionAttributes(attributes);
-				decisions.add(decision);
-			}
-
-		}
+		// Create the ACTIVITY_GEN_THUMB activity
+		Decision decision = new Decision();
+		decision.setDecisionType(DecisionType.ScheduleActivityTask);
+		ScheduleActivityTaskDecisionAttributes attributes = new ScheduleActivityTaskDecisionAttributes();
+		String priority = events.get(0).getWorkflowExecutionStartedEventAttributes().getTaskPriority();
 		
-		context.put("pdfCount", pdfCount);
-		context.put("xmlCount", xmlCount);
-		context.remove("pdfDone");
-		context.remove("xmlDone");
+		Map<String, Object> inputMap = new HashMap<String, Object>();
+		inputMap.put("bucket", (String) workflowInput.get("bucket"));
+		inputMap.put("prefix", (String) workflowInput.get("prefix"));
+		inputMap.put("containerId", (String) workflowInput.get("containerId"));
+
+		ActivityType activityType = new ActivityType();
+		activityType.setName(WorkflowConfig.ACTIVITY_GEN_THUMB);
+		activityType.setVersion(workflowConfig.getActivitiesVersion());
+		
+		attributes.setActivityType(activityType);
+		attributes.setInput(JsonUtils.toString(inputMap));
+		
+		TaskList taskList = new TaskList();
+		taskList.setName(workflowConfig.getActivityWorkerTaskListToPoll());
+
+		attributes.setTaskList(taskList);
+		attributes.setTaskPriority(priority);
+		attributes.setActivityId(java.util.UUID.randomUUID().toString());
+
+		decision.setScheduleActivityTaskDecisionAttributes(attributes);
+		decisions.add(decision);
+
+		// Create the ACTIVITY_EXTRACT_TEXT activity
+		decision = new Decision();
+		decision.setDecisionType(DecisionType.ScheduleActivityTask);
+		attributes = new ScheduleActivityTaskDecisionAttributes();
+		priority = events.get(0).getWorkflowExecutionStartedEventAttributes().getTaskPriority();
+		
+		inputMap = new HashMap<String, Object>();
+		inputMap.put("bucket", (String) workflowInput.get("bucket"));
+		inputMap.put("prefix", (String) workflowInput.get("prefix"));
+		inputMap.put("containerId", (String) workflowInput.get("containerId"));
+
+		activityType = new ActivityType();
+		activityType.setName(WorkflowConfig.ACTIVITY_EXTRACT_TEXT);
+		activityType.setVersion(workflowConfig.getActivitiesVersion());
+		
+		attributes.setActivityType(activityType);
+		attributes.setInput(JsonUtils.toString(inputMap));
+		
+		taskList = new TaskList();
+		taskList.setName(workflowConfig.getActivityWorkerTaskListToPoll());
+
+		attributes.setTaskList(taskList);
+		attributes.setTaskPriority(priority);
+		attributes.setActivityId(java.util.UUID.randomUUID().toString());
+
+		decision.setScheduleActivityTaskDecisionAttributes(attributes);
+		decisions.add(decision);
 		
 	}
 	

@@ -29,6 +29,9 @@ public class WorkflowConfig {
 	@Value("${swf.workflow.version}")
 	private String workflowVersion;
 	
+	@Value("${swf.activities.version}")
+	private String activitiesVersion;
+	
 	@Value("${swf.activityworker.task.list}")
 	private String activityWorkerTaskListToPoll;
 			
@@ -117,6 +120,14 @@ public class WorkflowConfig {
 
 	public void setWorkflowVersion(String workflowVersion) {
 		this.workflowVersion = workflowVersion;
+	}
+
+	public String getActivitiesVersion() {
+		return activitiesVersion;
+	}
+
+	public void setActivitiesVersion(String activitiesVersion) {
+		this.activitiesVersion = activitiesVersion;
 	}
 
 	public String getActivityWorkerTaskListToPoll() {
