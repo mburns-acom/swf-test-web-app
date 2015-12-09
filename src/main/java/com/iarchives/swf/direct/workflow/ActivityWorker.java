@@ -213,7 +213,7 @@ public class ActivityWorker implements Runnable {
 			// Create an "Image" object using the iArchives API
 			Image image = restClient.createImage(new Image(null, container
 					.getId(), pdf.getName(), null, s3Path, null, null));
-			String imageKey = prefix + "/" + image.getGuid();
+			String imageKey = prefix + image.getGuid();
 
 			// Upload the PDF file to S3 (use the key from the REST API)
 			tm.upload(bucket, imageKey, pdf);
