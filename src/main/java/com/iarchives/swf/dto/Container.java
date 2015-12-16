@@ -13,6 +13,7 @@ public class Container {
 	private String srcguid;
     private Calendar createDate;
     private Calendar lastUpdatedDate;
+    private String bucket;
     
     public Container() {
     	super();
@@ -20,7 +21,7 @@ public class Container {
     
 	public Container(Long id, Long parentId, Long projectId, String name,
 			short containerType, String guid, String srcguid,
-			Calendar createDate, Calendar lastUpdatedDate) {
+			Calendar createDate, Calendar lastUpdatedDate, String bucket) {
 		super();
 		this.parentId = parentId;
 		this.projectId = projectId;
@@ -30,6 +31,7 @@ public class Container {
 		this.srcguid = srcguid;
 		this.createDate = createDate;
 		this.lastUpdatedDate = lastUpdatedDate;
+		this.bucket = bucket;
 	}
 
     public Long getId() {
@@ -102,6 +104,14 @@ public class Container {
 	
 	public void setLastUpdatedDate(Calendar lastUpdatedDate) {
 		this.lastUpdatedDate = lastUpdatedDate;
+	}
+
+	public String getBucket() {
+		return bucket;
+	}
+
+	public void setBucket(String bucket) {
+		this.bucket = bucket;
 	}
 
 }

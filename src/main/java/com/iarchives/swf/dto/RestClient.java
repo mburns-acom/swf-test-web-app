@@ -210,5 +210,14 @@ public class RestClient {
 		
 		return images;
 	}
+
+	public QaSession createQaSession(QaSession qa) {
+
+		String url = iarchivesRestApiUrl.concat("/qasessions");
+		ResponseEntity<QaSession> response = restTemplate().postForEntity(url, qa, QaSession.class);
+		QaSession newOne = response.getBody();
+		
+		return newOne;
+	}
 	
 }

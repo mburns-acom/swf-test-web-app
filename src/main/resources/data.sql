@@ -36,6 +36,9 @@ INSERT INTO user_details (id, version, username, password, first_name, last_name
 INSERT INTO user_details (id, version, username, password, first_name, last_name, enabled, create_date, last_updated_date, number_of_visits)
  VALUES (null, 1, 'jharris', '$2a$10$/k9NgqPafRMPSYv19/XhLOjktrIgZB13kcDT9R/.hsIQ1Mg/Zy85.', 'Jacob', 'Harris', false, '2014-11-21 08:35:00', '2014-11-21 15:12:00', 0);
 
+INSERT INTO user_details (id, version, username, password, first_name, last_name, enabled, create_date, last_updated_date, number_of_visits)
+ VALUES (null, 1, 'allen', '$2a$10$/k9NgqPafRMPSYv19/XhLOjktrIgZB13kcDT9R/.hsIQ1Mg/Zy85.', 'Jeff', 'Allen', false, '2014-11-21 08:35:00', '2014-11-21 15:12:00', 0);
+
 
 INSERT INTO user_details_authorities (user_details, authorities) VALUES (1, 'ROLE_USER');
 INSERT INTO user_details_authorities (user_details, authorities) VALUES (1, 'ROLE_ADMIN');
@@ -43,6 +46,8 @@ INSERT INTO user_details_authorities (user_details, authorities) VALUES (2, 'ROL
 INSERT INTO user_details_authorities (user_details, authorities) VALUES (2, 'ROLE_ADMIN');
 INSERT INTO user_details_authorities (user_details, authorities) VALUES (3, 'ROLE_USER');
 INSERT INTO user_details_authorities (user_details, authorities) VALUES (3, 'ROLE_ADMIN');
+INSERT INTO user_details_authorities (user_details, authorities) VALUES (4, 'ROLE_USER');
+INSERT INTO user_details_authorities (user_details, authorities) VALUES (4, 'ROLE_ADMIN');
 
 
 INSERT INTO project (id, guid, name, create_date, last_updated_date)

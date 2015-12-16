@@ -9,8 +9,8 @@ import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
+//import javax.persistence.JoinColumn;
+//import javax.persistence.ManyToOne;
 import javax.persistence.PrePersist;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
@@ -32,11 +32,14 @@ public class Container implements Serializable {
 	private Long parentId;
 	
 	// many-to-one association to Project
-	@ManyToOne
-	@JoinColumn(name="project_id")
-	private Project project;
+//	@ManyToOne
+//	@JoinColumn(name="project_id")
+//	private Project project;
+//	
+//	@Column(name = "project_id", insertable=false, updatable=false)
+//	private Long projectId;
 	
-	@Column(name = "project_id", insertable=false, updatable=false)
+	@Column(name = "project_id")
 	private Long projectId;
 
 	@Column(nullable = false)
@@ -58,6 +61,9 @@ public class Container implements Serializable {
     @Column(nullable = false)
     @Temporal(TemporalType.TIMESTAMP)
     private Calendar lastUpdatedDate;
+    
+    @Column(nullable = true)
+    private String bucket;
 
 	@PrePersist
 	void preInsert() {
@@ -84,7 +90,7 @@ public class Container implements Serializable {
 		this.srcguid = srcguid;
 	}
 
-	public Container(String name, String guid, String srcguid, short containerType, Calendar createDate, Calendar lastUpdatedDate) {
+	public Container(String name, String guid, String srcguid, short containerType, Calendar createDate, Calendar lastUpdatedDate, String bucket) {
 		super();
 		this.name = name;
 		this.guid = guid;
@@ -92,6 +98,7 @@ public class Container implements Serializable {
 		this.containerType = containerType;
 		this.createDate = createDate;
 		this.lastUpdatedDate = lastUpdatedDate;
+		this.bucket = bucket;
 	}
 
 	public Long getId() {
@@ -116,6 +123,14 @@ public class Container implements Serializable {
 
 	public void setParentId(Long parentId) {
 		this.parentId = parentId;
+	}
+
+	public Long getProjectId() {
+		return projectId;
+	}
+
+	public void setProjectId(Long projectId) {
+		this.projectId = projectId;
 	}
 
 	public short getContainerType() {
@@ -156,6 +171,14 @@ public class Container implements Serializable {
 
 	public void setLastUpdatedDate(Calendar lastUpdatedDate) {
 		this.lastUpdatedDate = lastUpdatedDate;
+	}
+
+	public String getBucket() {
+		return bucket;
+	}
+
+	public void setBucket(String bucket) {
+		this.bucket = bucket;
 	}
 
 	@Override

@@ -20,8 +20,16 @@ public class WorkflowConfig {
 	public static final String ACTIVITY_EXTRACT_TEXT = "ExtractTextActivity";
 	public static final String ACTIVITY_APPROVE_CONTAINER = "ApproveContainerActivity";
 	
+	public static final String ACTIVITY_DONE_GEN_THUMB = "GenerateThumbnailActivityDone";
+	public static final String ACTIVITY_DONE_EXTRACT_TEXT = "ExtractTextActivityDone";
+	public static final String ACTIVITY_QA_APPROVED = "approved";
+	public static final String ACTIVITY_QA_FAILED = "failed";
+	
 	@Value("${swf.domain}")
 	private String domain;
+	
+	@Value("${swf.region}")
+	private String region;
 	
 	@Value("${swf.workflow.type}")
 	private String workflowType;
@@ -74,6 +82,7 @@ public class WorkflowConfig {
 	public AmazonSimpleWorkflowClient getAmazonSimpleWorkflowClient() {
 		if (swfClient == null) {
 			swfClient = new AmazonSimpleWorkflowClient(getBasicAWSCredentials(), getClientConfiguration());
+			swfClient.setRegion(com.amazonaws.regions.RegionUtils.getRegion(region));
 			//swfClient.setEndpoint(endpoint);
 		}
 		return swfClient;
@@ -104,6 +113,14 @@ public class WorkflowConfig {
 
 	public void setDomain(String domain) {
 		this.domain = domain;
+	}
+
+	public String getRegion() {
+		return region;
+	}
+
+	public void setRegion(String region) {
+		this.region = region;
 	}
 
 	public String getWorkflowType() {

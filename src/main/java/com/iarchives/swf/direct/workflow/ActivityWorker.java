@@ -18,6 +18,8 @@ import javax.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.transfer.TransferManager;
@@ -32,6 +34,7 @@ import com.iarchives.swf.dto.Container;
 import com.iarchives.swf.dto.Image;
 import com.iarchives.swf.dto.Project;
 import com.iarchives.swf.dto.RestClient;
+import com.iarchives.swf.dto.QaSession;
 
 @Component
 public class ActivityWorker implements Runnable {
@@ -130,6 +133,7 @@ public class ActivityWorker implements Runnable {
 						success = false;
 					}
 				} catch (Exception e) {
+					e.printStackTrace();
 					output = new HashMap<String, Object>();
 					output.put("reason", "ERROR: " + e.toString());
 					success = false;
@@ -163,7 +167,7 @@ public class ActivityWorker implements Runnable {
 		String bucket = (String) input.get("bucket");
 		String zipFileKey = (String) input.get("object");
 
-		// TODO: Download the zip file
+		// Download the zip file
 		File dir = createTempDirectory();
 		String zipFilePath = dir.getAbsolutePath() + "/temp.zip";
 		AmazonS3 s3 = new AmazonS3Client();
@@ -173,7 +177,7 @@ public class ActivityWorker implements Runnable {
 
 		File unzipDir = new File(dir.getAbsolutePath() + "/unzip");
 
-		// TODO: Use the name of the zip file to create a "container" in the
+		// Use the name of the zip file to create a "container" in the
 		// test project (using iArchives API). The API can be called 2 ways.
 		// If this code is running in the same context as the API app then we
 		// can use Spring @Autowired to give this class the instance of the
@@ -185,14 +189,14 @@ public class ActivityWorker implements Runnable {
 		Calendar now = Calendar.getInstance();
 		if (root == null) {
 			root = new Container(null, new Long(-1L), project.getId(), "root",
-					(short) 0, null, "", null, null);
+					(short) 0, null, "", null, null, bucket);
 			root = restClient.createContainer(root);
 		}
 		
 		// Create the container for our zip files
 		String contName = zipFileKey + "_" + System.currentTimeMillis();
 		Container container = new Container(null, root.getId(),
-				project.getId(), contName, (short) 1, null, "", null, null);
+				project.getId(), contName, (short) 1, null, "", null, null, bucket);
 		container = restClient.createContainer(container);
 		String prefix = "jobs/"
 				+ task.getWorkflowExecution().getRunId().replace('/', '_')
@@ -216,65 +220,89 @@ public class ActivityWorker implements Runnable {
 			String imageKey = prefix + image.getGuid();
 
 			// Upload the PDF file to S3 (use the key from the REST API)
-			tm.upload(bucket, imageKey, pdf);
+			tm.upload(bucket, imageKey, pdf).waitForCompletion();
 		}
 
 		// Cleanup local directory
-		deleteRecursive(dir);
+		try {
+			deleteRecursive(dir);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 
 		return result;
 	}
 
-	private Map<String, Object> processThumbnails(ActivityTask task) throws IOException {
+	public Map<String, Object> processThumbnails(ActivityTask task) throws IOException, AmazonServiceException, AmazonClientException, InterruptedException {
 		Map<String, Object> input = JsonUtils.fromString(task.getInput());
 
 		Map<String, Object> result = new HashMap<String, Object>();
 		File dir = createTempDirectory();
 
 		String bucket = (String) input.get("bucket");
-		String prefix = (String) input.get("prefix");
-		Long containerId = Long.parseLong((String) input.get("containerId"));
+		//String prefix = (String) input.get("prefix");
+		Long containerId = NumberUtils.safeLong(input.get("containerId"));
 
 		// Get the images from the database
 		List<Image> images = restClient.getImagesForContainer(containerId);
 		
 		for (Image image : images) {
-			// TODO: Download each image
+			// Download each image
+			String imageKey = image.getUrl() + image.getGuid();
+			File imageFile = new File(dir.getAbsolutePath(), image.getName());
+			AmazonS3 s3 = new AmazonS3Client();
+			TransferManager tm = new TransferManager(s3);
+			tm.download(bucket, imageKey, imageFile).waitForCompletion();
 			
-			// TODO: Generate a thumbnail
-			
+			// Generate a thumbnail
+			File jpeg = createJpegThumbnail(imageFile, 300, 300);
+			tm.upload(bucket, imageKey.replace("/raw", "/thumb"), jpeg).waitForCompletion();
 		}
 
 		// Cleanup the directory
-		deleteRecursive(dir);
+		try {
+			deleteRecursive(dir);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 		
 		// TODO: Add any failures to the result map
 
 		return result;
 	}
 
-	private Map<String, Object> processOcr(ActivityTask task) throws IOException {
+	public Map<String, Object> processOcr(ActivityTask task) throws IOException, AmazonServiceException, AmazonClientException, InterruptedException {
 		Map<String, Object> input = JsonUtils.fromString(task.getInput());
 
 		Map<String, Object> result = new HashMap<String, Object>();
 		File dir = createTempDirectory();
 
 		String bucket = (String) input.get("bucket");
-		String prefix = (String) input.get("prefix");
-		Long containerId = Long.parseLong((String) input.get("containerId"));
+		//String prefix = (String) input.get("prefix");
+		Long containerId = NumberUtils.safeLong(input.get("containerId"));
 
 		// Get the images from the database
 		List<Image> images = restClient.getImagesForContainer(containerId);
 		
 		for (Image image : images) {
-			// TODO: Download each image
+			// Download each image
+			String imageKey = image.getUrl() + image.getGuid();
+			File imageFile = new File(dir.getAbsolutePath(), image.getName());
+			AmazonS3 s3 = new AmazonS3Client();
+			TransferManager tm = new TransferManager(s3);
+			tm.download(bucket, imageKey, imageFile).waitForCompletion();
 			
-			// TODO: Extract text
-			
+			// Extract text
+			File textFile = extractPdfText(imageFile);
+			tm.upload(bucket, imageKey.replace("/raw", "/ocr"), textFile).waitForCompletion();
 		}
 
 		// Cleanup the directory
-		deleteRecursive(dir);
+		try {
+			deleteRecursive(dir);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 		
 		// TODO: Add any failures to the result map
 
@@ -288,9 +316,19 @@ public class ActivityWorker implements Runnable {
 		String runId = task.getWorkflowExecution().getRunId();
 		Map<String, Object> input = JsonUtils.fromString(task.getInput());
 		String priority = (String) input.get("priority");
+		String bucket = (String) input.get("bucket");
+		Long containerId = NumberUtils.safeLong(input.get("containerId"));
 
-		// insert details into database (but for now, just write to console)
-		System.out.println("APPROVE: " + taskToken);
+		// write to console
+		System.out.println("Need to APPROVE: " + taskToken);
+		
+		// Save the task as a QaSession
+		QaSession qa = new QaSession();
+		qa.setContainerId(containerId);
+		qa.setCreateDate(Calendar.getInstance());
+		qa.setStatus("ready");
+		qa.setTaskToken(taskToken);
+		restClient.createQaSession(qa);
 
 		return result;
 	}
@@ -363,4 +401,53 @@ public class ActivityWorker implements Runnable {
 		return files;
 	}
 
+	/**
+	 * A simple method to generate a thumbnail from a pdf using ghostscript.
+	 * 
+	 * @param pdf - the source pdf file
+	 * @param name - the name of the jpg file
+	 * @param width - width
+	 * @param height - height
+	 * @return
+	 * @throws IOException
+	 * @throws InterruptedException
+	 */
+	private static File createJpegThumbnail(File pdf, int width, int height)
+			throws IOException, InterruptedException {
+
+		File jpeg = new File(pdf.getAbsolutePath().replace(".pdf", ".jpg"));
+
+		String gsPath = "C:\\Program Files\\gs\\gs9.18\\bin\\gswin64c.exe";
+		Process p = new ProcessBuilder(gsPath, "-dNOPAUSE", "-dBATCH",
+				"-dFirstPage=1", "-dLastPage=1", "-sDEVICE=jpeg", "-g"
+						+ Integer.toString(width) + "x"
+						+ Integer.toString(height), "-dPDFFitPage=true",
+				"-sOutputFile=" + jpeg.getAbsolutePath(), pdf.getAbsolutePath())
+				.start();
+		p.waitFor();
+
+		return jpeg;
+	}
+
+	/**
+	 * Simple method to extract text from the pdf and save it to a file.
+	 * 
+	 * @param pdf
+	 * @param name
+	 * @return
+	 * @throws IOException
+	 */
+	private static File extractPdfText(File pdf) throws IOException {
+		// TODO: Actually do something
+		
+
+		File outFile = new File(pdf.getAbsolutePath().replace(".pdf", ".xml"));
+		
+		FileOutputStream os = new FileOutputStream(outFile);
+		os.write("<page>This is a test</page>".getBytes());
+		os.flush();
+		os.close();
+		
+		return outFile;
+	}
 }

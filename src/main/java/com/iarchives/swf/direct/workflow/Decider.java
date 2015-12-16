@@ -42,14 +42,6 @@ public class Decider implements Runnable {
 		return JsonUtils.fromString(details.getLatestExecutionContext());
 	}
 
-	public int safeLongToInt(long l) {
-	    if (l < Integer.MIN_VALUE || l > Integer.MAX_VALUE) {
-	        throw new IllegalArgumentException
-	            (l + " cannot be cast to int without changing its value.");
-	    }
-	    return (int) l;
-	}
-	
 	public HistoryEvent getLastActivityBeforeDecisionTaskScheduled(List<HistoryEvent> events) {
 		HistoryEvent event = null;
 		for (int i = events.size() - 1; event == null && i > 0; i--)
@@ -108,12 +100,12 @@ public class Decider implements Runnable {
 		ActivityTaskCompletedEventAttributes attribs = trigger
 				.getActivityTaskCompletedEventAttributes();
 		if (attribs != null) {
-			HistoryEvent scheduled = events.get(safeLongToInt(attribs
+			HistoryEvent scheduled = events.get(NumberUtils.safeLongToInt(attribs
 					.getScheduledEventId() - 1));
 			if (scheduled != null) {
 				ActivityTaskScheduledEventAttributes scheduledAttribs = scheduled
 						.getActivityTaskScheduledEventAttributes();
-				ready = scheduledAttribs != null && scheduledAttribs.getActivityType().getName().compareTo(workflowConfig.getActivities().get(WorkflowConfig.ACTIVITY_IMPORT_ZIP)) == 0;
+				ready = scheduledAttribs != null && scheduledAttribs.getActivityType().getName().compareTo(WorkflowConfig.ACTIVITY_IMPORT_ZIP) == 0;
 			}
 		}
 		return ready;
@@ -132,11 +124,20 @@ public class Decider implements Runnable {
 	 */
 	public boolean isReadyForApproval(DecisionTask task, HistoryEvent trigger,
 			List<HistoryEvent> events, Map<String, Object> context) {
-		// TODO: Complete this logic
+		
+		if (context.get("stage") != null
+				&& context.get("stage").equals("processing")) {
+			if (context.get(WorkflowConfig.ACTIVITY_GEN_THUMB) != null
+					&& context.get(WorkflowConfig.ACTIVITY_GEN_THUMB).equals(
+							WorkflowConfig.ACTIVITY_DONE_GEN_THUMB)
+					&& context.get(WorkflowConfig.ACTIVITY_EXTRACT_TEXT) != null
+					&& context.get(WorkflowConfig.ACTIVITY_EXTRACT_TEXT)
+							.equals(WorkflowConfig.ACTIVITY_DONE_EXTRACT_TEXT)) {
+				return true;
+			}
+		}
+		
 		return false;
-//		return ((String)context.getOrDefault("stage", "")).compareTo("processing") == 0 &&
-//				((double)context.getOrDefault("pdfCount", 0d)) == ((double)context.getOrDefault("pdfDone", -1d)) &&
-//				((double)context.getOrDefault("xmlCount", 0d)) == ((double)context.getOrDefault("xmlDone", -1d));
 	}
 	
 	/**
@@ -156,13 +157,16 @@ public class Decider implements Runnable {
 		if (trigger != null && trigger.getEventType().compareTo("ActivityTaskCompleted") == 0) {
 			ActivityTaskCompletedEventAttributes attribs = trigger.getActivityTaskCompletedEventAttributes();
 			if (attribs != null) {
-				HistoryEvent scheduled = events.get(safeLongToInt(attribs.getScheduledEventId() - 1));
+				HistoryEvent scheduled = events.get(NumberUtils.safeLongToInt(attribs.getScheduledEventId() - 1));
 				if (scheduled != null) {
 					ActivityTaskScheduledEventAttributes scheduledAttribs = scheduled.getActivityTaskScheduledEventAttributes();
 					if (scheduledAttribs != null) {
 						if (scheduledAttribs.getActivityType().getName().compareTo(WorkflowConfig.ACTIVITY_APPROVE_CONTAINER) == 0) {
-							Map<String, Object> result = JsonUtils.fromString(attribs.getResult());
-							outcome = (String)result.get("outcome");
+							String result = attribs.getResult();
+							if (result.charAt(0) == '"') {
+								result = result.replaceAll("[\"]", "");
+							}
+							outcome = result;
 						}
 					}
 				}
@@ -205,20 +209,19 @@ public class Decider implements Runnable {
 				Map<String, Object> workflowInput = getEventInput(events.get(0));
 				HistoryEvent trigger = getLastActivityBeforeDecisionTaskScheduled(events);
 				
-				// increment counters for finished imaged processing
+				// Add the "Done" context for finished image processing
 				if (trigger != null && trigger.getEventType().compareTo("ActivityTaskCompleted") == 0) {
 					ActivityTaskCompletedEventAttributes attribs = trigger.getActivityTaskCompletedEventAttributes();
 					if (attribs != null) {
-						HistoryEvent scheduled = events.get(safeLongToInt(attribs.getScheduledEventId() - 1));
+						HistoryEvent scheduled = events.get(NumberUtils.safeLongToInt(attribs.getScheduledEventId() - 1));
 						if (scheduled != null) {
 							ActivityTaskScheduledEventAttributes scheduledAttribs = scheduled.getActivityTaskScheduledEventAttributes();
 							if (scheduledAttribs != null) {
-								/*
-								if (scheduledAttribs.getActivityType().getName().compareTo(Settings.getProcessImageActivityType()) == 0)
-									context.put("pdfDone", 1d + (double)context.getOrDefault("pdfDone", 0d));
-								else if (scheduledAttribs.getActivityType().getName().compareTo(Settings.getProcessXmlActivityType()) == 0)
-									context.put("xmlDone", 1d + (double)context.getOrDefault("xmlDone", 0d));
-									*/
+								if (scheduledAttribs.getActivityType().getName().compareTo(WorkflowConfig.ACTIVITY_GEN_THUMB) == 0) {
+									context.put(WorkflowConfig.ACTIVITY_GEN_THUMB, WorkflowConfig.ACTIVITY_DONE_GEN_THUMB);
+								} else if (scheduledAttribs.getActivityType().getName().compareTo(WorkflowConfig.ACTIVITY_EXTRACT_TEXT) == 0) {
+									context.put(WorkflowConfig.ACTIVITY_EXTRACT_TEXT, WorkflowConfig.ACTIVITY_DONE_EXTRACT_TEXT);
+								}
 							}
 						}
 					}
@@ -275,6 +278,7 @@ public class Decider implements Runnable {
 					
 					Map<String, Object> inputMap = new HashMap<String, Object>();
 					inputMap.put("priority", priority);
+					inputMap.put("containerId", NumberUtils.safeLong(context.get("containerId")));
 					
 					String inputJson = JsonUtils.toString(inputMap);
 					
@@ -304,10 +308,10 @@ public class Decider implements Runnable {
 					{
 						switch (outcome)
 						{
-						case "approved":
+						case WorkflowConfig.ACTIVITY_QA_APPROVED:
 							addWorkflowCompleteDecisions(decisions);
 							break;
-						case "not-approved":
+						case WorkflowConfig.ACTIVITY_QA_FAILED:
 							addProcessImagesDecisions(decisions, context, trigger, workflowInput, events);
 							break;
 						}	
@@ -339,16 +343,17 @@ public class Decider implements Runnable {
 			ActivityTaskCompletedEventAttributes attribs = trigger.getActivityTaskCompletedEventAttributes();
 			if (attribs != null)
 			{
-				HistoryEvent scheduled = events.get(safeLongToInt(attribs.getScheduledEventId() - 1));
+				HistoryEvent scheduled = events.get(NumberUtils.safeLongToInt(attribs.getScheduledEventId() - 1));
 				if (scheduled != null)
 				{
 					ActivityTaskScheduledEventAttributes scheduledAttribs = scheduled.getActivityTaskScheduledEventAttributes();
 					if (scheduledAttribs != null)
 					{
-						if (scheduledAttribs.getActivityType().getName().compareTo(workflowConfig.getActivities().get(WorkflowConfig.ACTIVITY_IMPORT_ZIP)) == 0)
+						if (scheduledAttribs.getActivityType().getName().compareTo(WorkflowConfig.ACTIVITY_IMPORT_ZIP) == 0)
 						{
 							originalTrigger = trigger;
 							context.put("importCompletedEventId", trigger.getEventId());
+							context.putAll(JsonUtils.fromString(attribs.getResult()));
 						}
 						else
 						{
@@ -371,8 +376,8 @@ public class Decider implements Runnable {
 		
 		Map<String, Object> inputMap = new HashMap<String, Object>();
 		inputMap.put("bucket", (String) workflowInput.get("bucket"));
-		inputMap.put("prefix", (String) workflowInput.get("prefix"));
-		inputMap.put("containerId", (String) workflowInput.get("containerId"));
+		inputMap.put("prefix", (String) context.get("prefix"));
+		inputMap.put("containerId", NumberUtils.safeLong(context.get("containerId")));
 
 		ActivityType activityType = new ActivityType();
 		activityType.setName(WorkflowConfig.ACTIVITY_GEN_THUMB);
@@ -399,8 +404,8 @@ public class Decider implements Runnable {
 		
 		inputMap = new HashMap<String, Object>();
 		inputMap.put("bucket", (String) workflowInput.get("bucket"));
-		inputMap.put("prefix", (String) workflowInput.get("prefix"));
-		inputMap.put("containerId", (String) workflowInput.get("containerId"));
+		inputMap.put("prefix", (String) context.get("prefix"));
+		inputMap.put("containerId", NumberUtils.safeLong(context.get("containerId")));
 
 		activityType = new ActivityType();
 		activityType.setName(WorkflowConfig.ACTIVITY_EXTRACT_TEXT);

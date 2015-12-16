@@ -2,6 +2,8 @@ package com.iarchives.web.controller;
 
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
@@ -30,8 +32,10 @@ import com.iarchives.swf.direct.workflow.SwfUtils;
 import com.iarchives.web.bean.ZipUploadFormBean;
 import com.iarchives.web.domain.Container;
 import com.iarchives.web.domain.Project;
+import com.iarchives.web.domain.QaSession;
 import com.iarchives.web.repository.ContainerRepository;
 import com.iarchives.web.repository.ProjectRepository;
+import com.iarchives.web.repository.QaSessionRepository;
 
 @Controller
 public class ProjectController {
@@ -47,6 +51,9 @@ public class ProjectController {
     
     @Autowired
     private ContainerRepository containerRepository;
+    
+    @Autowired
+    private QaSessionRepository qaSessionRepository;
     
 	@Autowired
 	private SwfUtils swfUtils;
@@ -67,18 +74,49 @@ public class ProjectController {
     public ModelAndView project(@PathVariable("id") Long id, HttpServletRequest req) {
     	
     	Project project = projectRepository.findOne(id);
-    	List<Container> containers = containerRepository.findByProject(project);
+    	List<Container> containers = containerRepository.findByProjectId(project.getId());
     	req.setAttribute("containers", containers);
+    	List<QaSession> work = new ArrayList<QaSession>();
+    	for (Container cont : containers) {
+    		work.addAll(qaSessionRepository.findByContainerId(cont.getId()));
+    	}
+    	req.setAttribute("work", work);
     	
         return new ModelAndView(PROJECT_VIEW_NAME, "project", project);
     }
     
-	@RequestMapping(value = "/projects/{guid}/uploadZipFile", method = RequestMethod.POST)
-	public ModelAndView uploadCsv(
+    /**
+     * AJAX method to simply approve the qa session.
+     * 
+     * @param id - id of the QaSession
+     * @param req
+     */
+    @RequestMapping(value = "/projects/quickapproval/{id}", method = RequestMethod.GET)
+    public void quickApproval(@PathVariable("id") Long id) {
+    	
+    	String outcome = "approved";
+    	
+    	// Save the change to our database
+    	QaSession qa = qaSessionRepository.findOne(id);
+    	qa.setLastUpdatedDate(Calendar.getInstance());
+    	qa.setStatus("completed");
+    	qa.setResult(outcome);
+    	qa.setReason("Quick Approval");
+    	qaSessionRepository.save(qa);
+        
+    	// Send the message to SWF
+    	logger.info("Task Token: " + qa.getTaskToken());
+    	logger.info("Outcome: " + outcome);
+		swfUtils.completeWorkflow(qa.getTaskToken(), outcome);
+		logger.info("COMPLETED Workflow");
+    }
+    
+	@RequestMapping(value = "/projects/{id}/uploadZipFile", method = RequestMethod.POST)
+	public ModelAndView uploadZipFile(
 			@ModelAttribute("zipUpload") ZipUploadFormBean upload, Errors errors,
-			HttpServletRequest req, @PathVariable("guid") String guid) {
+			HttpServletRequest req, @PathVariable("id") Long id) {
 
-		Project project = projectRepository.findByGuid(guid);
+		Project project = projectRepository.findOne(id);
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddhhmmss");
 		
 		String msg = "";
@@ -93,7 +131,7 @@ public class ProjectController {
 			is = mpFile.getInputStream();
 			AmazonS3 s3 = new AmazonS3Client();
 			TransferManager tm = new TransferManager(s3);
-			tm.upload(bucketName, key, is, null);
+			tm.upload(bucketName, key, is, null).waitForCompletion();
 			swfUtils.registerTypes();
 			swfUtils.startWorkflow(bucketName, key, "0");
 
@@ -107,6 +145,4 @@ public class ProjectController {
 		
         return new ModelAndView(PROJECT_VIEW_NAME, "project", project);
 	}
-    
-    
 }

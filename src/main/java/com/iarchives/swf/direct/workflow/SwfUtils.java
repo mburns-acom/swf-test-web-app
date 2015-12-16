@@ -9,6 +9,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import com.amazonaws.services.simpleworkflow.AmazonSimpleWorkflowClient;
+import com.amazonaws.services.simpleworkflow.flow.ManualActivityCompletionClient;
+import com.amazonaws.services.simpleworkflow.flow.ManualActivityCompletionClientFactory;
+import com.amazonaws.services.simpleworkflow.flow.ManualActivityCompletionClientFactoryImpl;
 import com.amazonaws.services.simpleworkflow.model.DefaultUndefinedException;
 import com.amazonaws.services.simpleworkflow.model.DomainAlreadyExistsException;
 import com.amazonaws.services.simpleworkflow.model.RegisterActivityTypeRequest;
@@ -134,6 +137,12 @@ public class SwfUtils {
 		}
 		
 		return runId;
+	}
+	
+	public void completeWorkflow(String taskToken, String result) {
+        ManualActivityCompletionClientFactory manualCompletionClientFactory = new ManualActivityCompletionClientFactoryImpl(swfClient);
+        ManualActivityCompletionClient manualCompletionClient = manualCompletionClientFactory.getClient(taskToken);
+        manualCompletionClient.complete(result);
 	}
 
 }
