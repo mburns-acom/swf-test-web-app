@@ -256,7 +256,7 @@ public class ActivityWorker implements Runnable {
 			
 			// Generate a thumbnail
 			File jpeg = createJpegThumbnail(imageFile, 300, 300);
-			tm.upload(bucket, imageKey.replace("/raw", "/thumb"), jpeg).waitForCompletion();
+			tm.upload(bucket, imageKey.replace("/raw", "/thumb") + ".jpg", jpeg).waitForCompletion();
 		}
 
 		// Cleanup the directory
@@ -294,7 +294,7 @@ public class ActivityWorker implements Runnable {
 			
 			// Extract text
 			File textFile = extractPdfText(imageFile);
-			tm.upload(bucket, imageKey.replace("/raw", "/ocr"), textFile).waitForCompletion();
+			tm.upload(bucket, imageKey.replace("/raw", "/ocr") + ".xml", textFile).waitForCompletion();
 		}
 
 		// Cleanup the directory

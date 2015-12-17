@@ -33,6 +33,9 @@
 	<definition name="site.project" extends="layout.basic">
 		<put-attribute name="body" value="/WEB-INF/tiles/view/project/project.jsp" />
 	</definition>
+	<definition name="site.qa" extends="layout.basic">
+		<put-attribute name="body" value="/WEB-INF/tiles/view/project/qa.jsp" />
+	</definition>
 	
     <definition name="site.login" extends="layout.basic">
         <put-attribute name="body" value="/WEB-INF/tiles/view/auth/login.jsp" />

@@ -8,6 +8,7 @@ import java.util.Date;
 import java.util.List;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -92,23 +93,83 @@ public class ProjectController {
      * @param req
      */
     @RequestMapping(value = "/projects/quickapproval/{id}", method = RequestMethod.GET)
-    public void quickApproval(@PathVariable("id") Long id) {
+    public void ajaxQuickApproval(@PathVariable("id") Long id, HttpServletResponse response) {
     	
+		String msg = null;
     	String outcome = "approved";
     	
-    	// Save the change to our database
-    	QaSession qa = qaSessionRepository.findOne(id);
-    	qa.setLastUpdatedDate(Calendar.getInstance());
-    	qa.setStatus("completed");
-    	qa.setResult(outcome);
-    	qa.setReason("Quick Approval");
-    	qaSessionRepository.save(qa);
-        
-    	// Send the message to SWF
-    	logger.info("Task Token: " + qa.getTaskToken());
-    	logger.info("Outcome: " + outcome);
-		swfUtils.completeWorkflow(qa.getTaskToken(), outcome);
-		logger.info("COMPLETED Workflow");
+    	try {
+			// Save the change to our database
+			QaSession qa = qaSessionRepository.findOne(id);
+			qa.setLastUpdatedDate(Calendar.getInstance());
+			qa.setStatus("completed");
+			qa.setResult(outcome);
+			qa.setReason("Quick Approval");
+			qaSessionRepository.save(qa);
+			
+			// Send the message to SWF
+			logger.info("Task Token: " + qa.getTaskToken());
+			logger.info("Outcome: " + outcome);
+			swfUtils.completeWorkflow(qa.getTaskToken(), outcome);
+			logger.info("COMPLETED Workflow");
+			
+			msg = "<span class='success'>Success: Approved</span>";
+		} catch (Exception e) {
+			msg = "<span class='error'>Error: " + e.toString() + "</span>";
+			logger.error("Error in ajaxQuickApproval", e);
+		}
+		
+		// Write to the response
+		try {
+			response.setContentType("text/html; charset=UTF-8");
+			response.getWriter().print(msg);
+			response.flushBuffer();
+		} catch (Exception e) {
+			logger.error("Exception in ajaxQuickApproval: " + e.toString(), e);
+		}
+    }
+    
+    /**
+     * AJAX method to simply reject the qa session.
+     * 
+     * @param id - id of the QaSession
+     * @param req
+     */
+    @RequestMapping(value = "/projects/quickfail/{id}", method = RequestMethod.GET)
+    public void ajaxQuickFail(@PathVariable("id") Long id, HttpServletResponse response) {
+    	
+		String msg = null;
+    	String outcome = "failed";
+    	
+    	try {
+			// Save the change to our database
+			QaSession qa = qaSessionRepository.findOne(id);
+			qa.setLastUpdatedDate(Calendar.getInstance());
+			qa.setStatus("completed");
+			qa.setResult(outcome);
+			qa.setReason("Quick Fail");
+			qaSessionRepository.save(qa);
+			
+			// Send the message to SWF
+			logger.info("Task Token: " + qa.getTaskToken());
+			logger.info("Outcome: " + outcome);
+			swfUtils.completeWorkflow(qa.getTaskToken(), outcome);
+			logger.info("COMPLETED Workflow");
+			
+			msg = "<span class='success'>Success: Approved</span>";
+		} catch (Exception e) {
+			msg = "<span class='error'>Error: " + e.toString() + "</span>";
+			logger.error("Error in ajaxQuickFail", e);
+		}
+		
+		// Write to the response
+		try {
+			response.setContentType("text/html; charset=UTF-8");
+			response.getWriter().print(msg);
+			response.flushBuffer();
+		} catch (Exception e) {
+			logger.error("Exception in ajaxQuickFail: " + e.toString(), e);
+		}
     }
     
 	@RequestMapping(value = "/projects/{id}/uploadZipFile", method = RequestMethod.POST)

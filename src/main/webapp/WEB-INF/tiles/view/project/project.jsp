@@ -1,6 +1,7 @@
 <%@ include file="/WEB-INF/tiles/include.jsp"%>
 
 <c:set var="ajaxQuickApprovalUrl" value="${pageContext.request.contextPath}/projects/quickapproval/" />
+<c:set var="ajaxQuickFailUrl" value="${pageContext.request.contextPath}/projects/quickfail/" />
 
 <script type="text/javascript">
 function quickApproval(btn, qasessionId) {
@@ -9,7 +10,19 @@ function quickApproval(btn, qasessionId) {
 
 	
 	$.get(url, function(rdata) {
-		$('#div_result_msg'+qasessionId).html(rdata);
+		$('#div_result_msg_'+qasessionId).html(rdata);
+	}, "html");
+	
+	return false;
+}
+
+function quickFail(btn, qasessionId) {
+	var url = '${ajaxQuickFailUrl}' + qasessionId;
+	btn.disabled = true;
+
+	
+	$.get(url, function(rdata) {
+		$('#div_result_msg_'+qasessionId).html(rdata);
 	}, "html");
 	
 	return false;
@@ -66,12 +79,14 @@ function quickApproval(btn, qasessionId) {
 					<td>
 						${qa.status}
 						<c:if test="${'ready' == qa.status}">
-							<input type="button" value="Quick Approval" class="default" onclick="javascript:quickApproval(this, ${qa.id})" />
+							<br /><a href="${pageContext.request.contextPath}/qasessions/${qa.id}">View Images</a>
+							<br /><input type="button" value="Quick Approval" class="default" onclick="javascript:quickApproval(this, ${qa.id})" />
+							&nbsp;<input type="button" value="Quick Fail" class="default" onclick="javascript:quickFail(this, ${qa.id})" />
 						</c:if>
 					</td>
 					<td><fmt:formatDate type="both" dateStyle="short" value="${qa.createDate.time}" /></td>
 					<td><fmt:formatDate type="both" dateStyle="short" value="${qa.lastUpdatedDate.time}" /></td>
-					<td id="div_result_msg${qa.id}">${qa.result}</td>
+					<td id="div_result_msg_${qa.id}">${qa.result}</td>
 					<td>${qa.reason}</td>
 				</tr>
 			</c:forEach>
