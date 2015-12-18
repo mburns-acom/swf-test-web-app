@@ -43,7 +43,7 @@ function quickFail(btn, qasessionId) {
 	</c:if>
 	
 	<h3>Containers</h3>
-	<div id="table-div" style="margin-bottom:20px">
+	<div id="table-div" style="margin-bottom:30px">
 		<table class="table table-striped table-hover">
 		<thead>
 			<tr><th>ID</th><th>ParentId</th><th>Name</th></tr>
@@ -64,7 +64,7 @@ function quickFail(btn, qasessionId) {
 	</div>
 	
 	<h3>QA Sessions</h3>
-	<div id="work-table-div" style="margin-bottom:20px">
+	<div id="work-table-div" style="margin-bottom:30px">
 		<table class="table table-striped table-hover">
 		<thead>
 			<tr><th>ID</th><th>Status</th><th>Created</th><th>Completed</th><th>Result</th><th>Reason</th></tr>
@@ -95,7 +95,7 @@ function quickFail(btn, qasessionId) {
 	</div>
 	
 	<h3>Upload Work</h3>
-	<div id="upload-table-div" style="margin-bottom:20px">
+	<div id="upload-table-div" style="margin-bottom:50px">
 		<p>Here you can upload a zip file of pdf pages to start processing.</p>
 		<form:form commandName="zipUpload" id="zipUpload" name="zipUpload" method="post" action="${pageContext.request.contextPath}/projects/${project.id}/uploadZipFile" enctype="multipart/form-data">
 			<input type="file" name="file" maxlength="255" size="40" />

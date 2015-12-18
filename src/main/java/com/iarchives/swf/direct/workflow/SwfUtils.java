@@ -12,7 +12,6 @@ import org.springframework.stereotype.Component;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.HttpMethod;
-import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
@@ -156,7 +155,7 @@ public class SwfUtils {
     public String generateImageUrl(String objectKey, String bucketName) {
     	
 		try {
-			AmazonS3 s3client = new AmazonS3Client(new ProfileCredentialsProvider());
+			AmazonS3 s3client = new AmazonS3Client(workflowConfig.getBasicS3Credentials());
 			
 			System.out.println("Generating pre-signed URL.");
 			java.util.Date expiration = new java.util.Date();

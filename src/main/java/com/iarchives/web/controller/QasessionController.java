@@ -48,6 +48,13 @@ public class QasessionController {
 	@Autowired
 	private SwfUtils swfUtils;
 
+    /**
+     * Display the QA Session page.
+     * 
+     * @param id
+     * @param req
+     * @return
+     */
     @RequestMapping(value = "/qasessions/{id}", method = RequestMethod.GET)
     public ModelAndView startQaSession(@PathVariable("id") Long id, HttpServletRequest req) {
     	

@@ -365,7 +365,7 @@ public class Decider implements Runnable {
 			}
 		}
 		
-		// TODO: Schedule both WorkflowConfig.ACTIVITY_GEN_THUMB and WorkflowConfig.ACTIVITY_EXTRACT_TEXT
+		// Schedule both WorkflowConfig.ACTIVITY_GEN_THUMB and WorkflowConfig.ACTIVITY_EXTRACT_TEXT
 		// These will run on an entire "Container" rather than on individual images.
 
 		// Create the ACTIVITY_GEN_THUMB activity

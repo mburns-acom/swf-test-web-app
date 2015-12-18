@@ -1,0 +1,2 @@
+cd /home/ec2-user/working/swf-test-web-app
+java -jar -D"aws.access.id"="AKIAJFGIYDLY4QUW77XQ" -D"aws.secret.key"="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" -D"s3.access.id"="AKIAJFGIYDLY4QUW77XQ" -D"s3.secret.key"="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" /home/ec2-user/working/swf-test-web-app/swf-test-web-app-3.0.1-SNAPSHOT.war
