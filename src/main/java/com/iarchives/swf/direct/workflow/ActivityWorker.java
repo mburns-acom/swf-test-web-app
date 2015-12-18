@@ -5,8 +5,10 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +22,7 @@ import org.springframework.stereotype.Component;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
+import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.transfer.TransferManager;
@@ -40,6 +43,8 @@ import com.iarchives.swf.dto.QaSession;
 public class ActivityWorker implements Runnable {
 
 	private AmazonSimpleWorkflowClient swfClient;
+	private SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddhhmmss.SSS");
+	private BasicAWSCredentials s3Credentials;
 
 	@Autowired
 	private WorkflowConfig workflowConfig;
@@ -50,6 +55,7 @@ public class ActivityWorker implements Runnable {
 	@PostConstruct
 	public void init() {
 		swfClient = workflowConfig.getAmazonSimpleWorkflowClient();
+		s3Credentials = workflowConfig.getBasicS3Credentials();
 		
 		Thread activityWorker = new Thread(this, "activity-worker");
 		activityWorker.start();
@@ -121,7 +127,7 @@ public class ActivityWorker implements Runnable {
 						break;
 					case WorkflowConfig.ACTIVITY_EXTRACT_TEXT:
 						output = processOcr(task);
-						break;
+					break;
 					case WorkflowConfig.ACTIVITY_APPROVE_CONTAINER:
 						respondOnSuccess = false;
 						output = queueApproval(task);
@@ -170,7 +176,7 @@ public class ActivityWorker implements Runnable {
 		// Download the zip file
 		File dir = createTempDirectory();
 		String zipFilePath = dir.getAbsolutePath() + "/temp.zip";
-		AmazonS3 s3 = new AmazonS3Client();
+		AmazonS3 s3 = new AmazonS3Client(s3Credentials);
 		TransferManager tm = new TransferManager(s3);
 		tm.download(bucket, zipFileKey, new File(zipFilePath))
 				.waitForCompletion();
@@ -186,7 +192,6 @@ public class ActivityWorker implements Runnable {
 		
 		Project project = restClient.getProjectByGuid(workflowConfig.getPdfTestProjectGuid());
 		Container root = restClient.getProjectRoot(project.getId());
-		Calendar now = Calendar.getInstance();
 		if (root == null) {
 			root = new Container(null, new Long(-1L), project.getId(), "root",
 					(short) 0, null, "", null, null, bucket);
@@ -199,7 +204,8 @@ public class ActivityWorker implements Runnable {
 				project.getId(), contName, (short) 1, null, "", null, null, bucket);
 		container = restClient.createContainer(container);
 		String prefix = "jobs/"
-				+ task.getWorkflowExecution().getRunId().replace('/', '_')
+				+ sdf.format(new Date())
+/*				+ task.getWorkflowExecution().getRunId().replace('/', '_') */
 				+ "/" + container.getGuid()
 				+ "/raw/";
 		
@@ -250,7 +256,7 @@ public class ActivityWorker implements Runnable {
 			// Download each image
 			String imageKey = image.getUrl() + image.getGuid();
 			File imageFile = new File(dir.getAbsolutePath(), image.getName());
-			AmazonS3 s3 = new AmazonS3Client();
+			AmazonS3 s3 = new AmazonS3Client(s3Credentials);
 			TransferManager tm = new TransferManager(s3);
 			tm.download(bucket, imageKey, imageFile).waitForCompletion();
 			
@@ -288,7 +294,7 @@ public class ActivityWorker implements Runnable {
 			// Download each image
 			String imageKey = image.getUrl() + image.getGuid();
 			File imageFile = new File(dir.getAbsolutePath(), image.getName());
-			AmazonS3 s3 = new AmazonS3Client();
+			AmazonS3 s3 = new AmazonS3Client(s3Credentials);
 			TransferManager tm = new TransferManager(s3);
 			tm.download(bucket, imageKey, imageFile).waitForCompletion();
 			
@@ -313,10 +319,10 @@ public class ActivityWorker implements Runnable {
 		
 		Map<String, Object> result = new HashMap<String, Object>();
 		String taskToken = task.getTaskToken();
-		String runId = task.getWorkflowExecution().getRunId();
+		//String runId = task.getWorkflowExecution().getRunId();
 		Map<String, Object> input = JsonUtils.fromString(task.getInput());
-		String priority = (String) input.get("priority");
-		String bucket = (String) input.get("bucket");
+		//String priority = (String) input.get("priority");
+		//String bucket = (String) input.get("bucket");
 		Long containerId = NumberUtils.safeLong(input.get("containerId"));
 
 		// write to console
@@ -418,6 +424,10 @@ public class ActivityWorker implements Runnable {
 		File jpeg = new File(pdf.getAbsolutePath().replace(".pdf", ".jpg"));
 
 		String gsPath = "C:\\Program Files\\gs\\gs9.18\\bin\\gswin64c.exe";
+		String os = System.getProperty("os.name").toLowerCase();
+		if (os.indexOf("linux") >= 0 || os.indexOf("unix") >= 0) {
+			gsPath = "/usr/bin/gs";
+		}
 		Process p = new ProcessBuilder(gsPath, "-dNOPAUSE", "-dBATCH",
 				"-dFirstPage=1", "-dLastPage=1", "-sDEVICE=jpeg", "-g"
 						+ Integer.toString(width) + "x"

@@ -73,6 +73,10 @@ public class WorkflowConfig {
 		return new BasicAWSCredentials(swfAccessId, swfSecretKey);
 	}
 	
+	public BasicAWSCredentials getBasicS3Credentials() {
+		return new BasicAWSCredentials(s3AccessId, s3SecretKey);
+	}
+	
 	public ClientConfiguration getClientConfiguration() {
 		ClientConfiguration clientConfig = new ClientConfiguration();
 		clientConfig.setSocketTimeout(socketTimeout);
