@@ -26,7 +26,6 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.ModelAndView;
 
-import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.transfer.TransferManager;
@@ -63,18 +62,6 @@ public class ProjectController {
     @Value("${pdf.testing.bucket.name}")
     private String bucketName;
 
-	@Value("${s3.access.id}")
-	private String s3AccessId;
-	
-	@Value("${s3.secret.key}")
-	private String s3SecretKey;
-	
-    /**
-     * Display the list of projects in the repo.
-     * 
-     * @param pageable
-     * @return
-     */
     @RequestMapping(value = {"/projects"}, method = RequestMethod.GET)
     public ModelAndView projectsHome(@PageableDefault(page = 0, size = 25) final Pageable pageable) {
         logger.debug("Home requested.");
@@ -84,15 +71,8 @@ public class ProjectController {
         return new ModelAndView(HOME_VIEW_NAME, "page", projects);
     }
 
-    /**
-     * Display the project details page.
-     * 
-     * @param id
-     * @param req
-     * @return
-     */
     @RequestMapping(value = "/projects/{id}", method = RequestMethod.GET)
-    public ModelAndView projectDetails(@PathVariable("id") Long id, HttpServletRequest req) {
+    public ModelAndView project(@PathVariable("id") Long id, HttpServletRequest req) {
     	
     	Project project = projectRepository.findOne(id);
     	List<Container> containers = containerRepository.findByProjectId(project.getId());
@@ -192,22 +172,13 @@ public class ProjectController {
 		}
     }
     
-	/**
-	 * Handle the upload of a zip file.
-	 * 
-	 * @param upload
-	 * @param errors
-	 * @param req
-	 * @param id
-	 * @return
-	 */
 	@RequestMapping(value = "/projects/{id}/uploadZipFile", method = RequestMethod.POST)
-	public String uploadZipFile(
+	public ModelAndView uploadZipFile(
 			@ModelAttribute("zipUpload") ZipUploadFormBean upload, Errors errors,
 			HttpServletRequest req, @PathVariable("id") Long id) {
 
 		Project project = projectRepository.findOne(id);
-		SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddhhmmss.SSS");
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddhhmmss");
 		
 		String msg = "";
 		
@@ -219,7 +190,7 @@ public class ProjectController {
 			String key = origName.replaceAll("[ ]", "_").replace(".zip", "")
 					+ "-" + sdf.format(new Date()) + ".zip";
 			is = mpFile.getInputStream();
-			AmazonS3 s3 = new AmazonS3Client(new BasicAWSCredentials(s3AccessId, s3SecretKey));
+			AmazonS3 s3 = new AmazonS3Client();
 			TransferManager tm = new TransferManager(s3);
 			tm.upload(bucketName, key, is, null).waitForCompletion();
 			swfUtils.registerTypes();
@@ -233,6 +204,6 @@ public class ProjectController {
 		
 		req.setAttribute("message", msg);
 		
-        return "redirect:/projects/" + project.getId();
+        return new ModelAndView(PROJECT_VIEW_NAME, "project", project);
 	}
 }
